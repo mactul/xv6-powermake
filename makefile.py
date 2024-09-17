@@ -4,14 +4,14 @@ import powermake
 def compile_bootblock(config: powermake.Config):
     config = config.copy()
 
-    # config.set_optimization("-O2")  # if no optimization is used, the boot block will be too big.
+    config.set_optimization("-Oz")  # if no optimization is used, the boot block will be too big.
     config.add_ld_flags("-N", "-e", "start", "-Ttext", "0x7C00")
-    config.c_flags.extend(["-fno-pic", "-O", "-nostdinc"])
-    config.as_flags = ["-fno-pic", "-static", "-fno-builtin", "-fno-strict-aliasing", "-O2", "-Wall", "-g", "-m32", "-fno-omit-frame-pointer", "-fno-stack-protector", "-fno-pie", "-no-pie", "-fno-pic", "-nostdinc"]
+    config.add_c_flags("-nostdinc")
+    config.add_as_flags("-fno-pic", "-static", "-fno-builtin", "-fno-strict-aliasing", "-fno-omit-frame-pointer", "-fno-stack-protector", "-fno-pie", "-no-pie", "-nostdinc")
 
-    objects = powermake.compile_files(config, ["bootmain.c", "bootasm.S"])
+    objects = powermake.compile_files(config, {"bootmain.c", "bootasm.S"})
 
-    objects = sorted(list(objects))  # Apparently, bootasm NEED to be before bootmain for the link
+    objects = sorted(list(objects))  # Apparently, bootasm **NEED** to be before bootmain for the link
 
     bootblock_o = powermake.link_files(config, objects, executable_name="bootblock.o")
 
@@ -24,7 +24,7 @@ def compile_initcode(config: powermake.Config):
     config = config.copy()
 
     config.add_ld_flags("-N", "-e", "start", "-Ttext", "0")
-    config.as_flags = ["-fno-pic", "-static", "-fno-builtin", "-fno-strict-aliasing", "-O2", "-g", "-Wall", "-m32", "-fno-omit-frame-pointer", "-fno-stack-protector", "-fno-pie", "-no-pie", "-fno-pic", "-nostdinc"]
+    config.add_as_flags("-fno-pic", "-static", "-fno-builtin", "-fno-strict-aliasing", "-fno-omit-frame-pointer", "-fno-stack-protector", "-fno-pie", "-no-pie", "-nostdinc")
 
     objects = powermake.compile_files(config, {"initcode.S"})
 
@@ -37,7 +37,7 @@ def compile_entryother(config: powermake.Config):
     config = config.copy()
 
     config.add_ld_flags("-N", "-e", "start", "-Ttext", "0x7000")
-    config.as_flags = ["-fno-pic", "-static", "-fno-builtin", "-fno-strict-aliasing", "-O2", "-g", "-Wall", "-m32", "-fno-omit-frame-pointer", "-fno-stack-protector", "-fno-pie", "-no-pie", "-fno-pic", "-nostdinc"]
+    config.add_as_flags("-fno-pic", "-static", "-fno-builtin", "-fno-strict-aliasing", "-fno-omit-frame-pointer", "-fno-stack-protector", "-fno-pie", "-no-pie", "-nostdinc")
 
     objects = powermake.compile_files(config, {"entryother.S"})
 
@@ -59,34 +59,13 @@ def build_xv6_img(config: powermake.Config):
         powermake.run_command(config, "./vectors.pl > vectors.S", shell=True)
 
     files = {
-        "entry.S",
-        "bio.c",
-        "console.c",
-        "exec.c",
-        "file.c",
-        "fs.c",
-        "ide.c",
-        "ioapic.c",
-        "kalloc.c",
-        "kbd.c",
-        "lapic.c",
-        "log.c",
-        "main.c",
-        "mp.c",
-        "picirq.c",
-        "pipe.c",
-        "proc.c",
-        "sleeplock.c",
-        "spinlock.c",
-        "string.c",
-        "swtch.S",
-        "syscall.c",
-        "sysfile.c",
-        "sysproc.c",
-        "trapasm.S",
-        "trap.c",
-        "uart.c",
-        "vectors.S",
+        "bio.c", "console.c", "entry.S", "exec.c",
+        "file.c", "fs.c", "ide.c", "ioapic.c",
+        "kalloc.c", "kbd.c", "lapic.c", "log.c",
+        "main.c", "mp.c", "picirq.c", "pipe.c",
+        "proc.c", "sleeplock.c", "spinlock.c", "string.c",
+        "swtch.S", "syscall.c", "sysfile.c", "sysproc.c",
+        "trapasm.S", "trap.c", "uart.c", "vectors.S",
         "vm.c"
     }
 
@@ -129,8 +108,8 @@ def build_fs_img(config: powermake.Config, mkfs_prg: str):
     for name in ("cat", "echo", "grep", "init", "kill", "ln", "ls", "mkdir", "rm", "sh", "stressfs", "usertests", "wc", "zombie"):
         programs.add(compile_user_prg(config, {f"{name}.c"}, objects_libc, f"_{name}"))
 
-    # forktest has less library code linked in - needs to be small
-    # in order to be able to max out the proc table.
+    # forktest has less library code linked in
+    # needs to be small in order to be able to max out the proc table.
     programs.add(compile_user_prg(config, {"forktest.c"}, objects_libc_restricted, "_forktest"))
 
     op = powermake.operation.Operation("fs.img", {"README", *programs}, config, command=[mkfs_prg, "fs.img", *programs])
@@ -150,11 +129,10 @@ def build_mkfs(config: powermake.Config):
 def on_build(config: powermake.Config):
     mkfs_prg = build_mkfs(config)
 
-    config.set_optimization("-O2")
+    config.add_c_cpp_as_asm_flags("-Wall", "-Wextra")
 
-    config.c_flags = ["-fno-pic", "-static", "-fno-builtin", "-fno-strict-aliasing", "-O2", "-Wall", "-g", "-m32", "-fno-omit-frame-pointer", "-fno-stack-protector", "-fno-pie", "-no-pie"]
+    config.add_c_flags("-fno-pic", "-static", "-fno-builtin", "-fno-strict-aliasing", "-fno-omit-frame-pointer", "-fno-stack-protector", "-fno-pie", "-no-pie")
     config.add_ld_flags("-m", "elf_i386")
-    config.add_includedirs(".")
 
     build_xv6_img(config)
     build_fs_img(config, mkfs_prg)
@@ -162,4 +140,15 @@ def on_build(config: powermake.Config):
     powermake.run_command(config, "qemu-system-i386 -serial mon:stdio -drive file=fs.img,index=1,media=disk,format=raw -drive file=xv6.img,index=0,media=disk,format=raw -smp 2 -m 512", shell=True)
 
 
-powermake.run("kernel.bin", build_callback=on_build)
+def on_clean(config: powermake.Config):
+    powermake.delete_files_from_disk(
+        "_cat", "_echo", "_forktest", "_grep", "_init", "_kill", "_ln", "_ls",
+        "_mkdir", "_rm", "_sh", "_stressfs", "_usertests", "_wc", "_zombie",
+        "bootblock", "entryother", "initcode", "fs.img", "xv6.img",
+        "vectors.S"
+    )
+
+    powermake.default_on_clean(config)
+
+
+powermake.run("kernel.bin", build_callback=on_build, clean_callback=on_clean)
