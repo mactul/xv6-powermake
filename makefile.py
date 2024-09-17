@@ -9,9 +9,9 @@ def compile_bootblock(config: powermake.Config):
     config.add_c_flags("-nostdinc")
     config.add_as_flags("-fno-pic", "-static", "-fno-builtin", "-fno-strict-aliasing", "-fno-omit-frame-pointer", "-fno-stack-protector", "-fno-pie", "-no-pie", "-nostdinc")
 
-    objects = powermake.compile_files(config, {"bootmain.c", "bootasm.S"})
-
-    objects = sorted(list(objects))  # Apparently, bootasm **NEED** to be before bootmain for the link
+    # WARNING, bootasm **NEED** to be before bootmain for the link
+    # We use a list and not a set and powermake (version >= 1.10) will also return a list, preserving the order.
+    objects = powermake.compile_files(config, ["bootasm.S", "bootmain.c"])
 
     bootblock_o = powermake.link_files(config, objects, executable_name="bootblock.o")
 
