@@ -1,0 +1,15 @@
+{
+    "target_architecture": "x86",
+    "c_compiler": {
+        "type": "gcc",
+        "path": "i386-elf-gcc"
+    },
+    "as_compiler": {
+        "type": "gcc",
+        "path": "i386-elf-gcc"
+    },
+    "linker": {
+        "type": "ld",
+        "path": "i386-elf-ld"
+    }
+}
