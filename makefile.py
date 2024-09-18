@@ -15,9 +15,9 @@ def compile_bootblock(config: powermake.Config):
 
     bootblock_o = powermake.link_files(config, objects, executable_name="bootblock.o")
 
-    powermake.run_command(config, ["objcopy", "-S", "-O", "binary", "-j", ".text", bootblock_o, "bootblock"])
-
-    powermake.run_command(config, ["./sign.pl", "bootblock"])
+    if powermake.needs_update(outputfile="bootblock", dependencies={bootblock_o}, additional_includedirs=[]):
+        powermake.run_command(config, ["objcopy", "-S", "-O", "binary", "-j", ".text", bootblock_o, "bootblock"])
+        powermake.run_command(config, ["./sign.pl", "bootblock"])
 
 
 def compile_initcode(config: powermake.Config):
@@ -30,7 +30,8 @@ def compile_initcode(config: powermake.Config):
 
     initcode_o = powermake.link_files(config, objects, executable_name="initcode.o.o")
 
-    powermake.run_command(config, ["objcopy", "-S", "-O", "binary", initcode_o, "initcode"])
+    if powermake.needs_update(outputfile="initcode", dependencies={initcode_o}, additional_includedirs=[]):
+        powermake.run_command(config, ["objcopy", "-S", "-O", "binary", initcode_o, "initcode"])
 
 
 def compile_entryother(config: powermake.Config):
@@ -43,7 +44,8 @@ def compile_entryother(config: powermake.Config):
 
     entryother_o = powermake.link_files(config, objects, executable_name="entryother.o.o")
 
-    powermake.run_command(config, ["objcopy", "-S", "-O", "binary", "-j", ".text", entryother_o, "entryother"])
+    if powermake.needs_update(outputfile="entryother", dependencies={entryother_o}, additional_includedirs=[]):
+        powermake.run_command(config, ["objcopy", "-S", "-O", "binary", "-j", ".text", entryother_o, "entryother"])
 
 
 def build_xv6_img(config: powermake.Config):
@@ -55,7 +57,7 @@ def build_xv6_img(config: powermake.Config):
 
     config.add_as_flags("-gdwarf-2", "-Wa,-divide")
 
-    if powermake.needs_update("vector.S", {"vectors.pl"}, []):
+    if powermake.needs_update(outputfile="vectors.S", dependencies={"vectors.pl"}, additional_includedirs=[]):
         powermake.run_command(config, "./vectors.pl > vectors.S", shell=True)
 
     files = {
@@ -74,9 +76,10 @@ def build_xv6_img(config: powermake.Config):
     config.add_ld_flags("-T", "kernel.ld", "-b", "binary", "initcode", "entryother")
     kernel_bin = powermake.link_files(config, objects)
 
-    powermake.run_command(config, "dd if=/dev/zero of=xv6.img count=10000", shell=True)
-    powermake.run_command(config, "dd if=bootblock of=xv6.img conv=notrunc", shell=True)
-    powermake.run_command(config, ["dd", f"if={kernel_bin}", "of=xv6.img", "seek=1", "conv=notrunc"])
+    if powermake.needs_update(outputfile="xv6.img", dependencies={"bootblock", kernel_bin}, additional_includedirs=[]):
+        powermake.run_command(config, "dd if=/dev/zero of=xv6.img count=10000", shell=True)
+        powermake.run_command(config, "dd if=bootblock of=xv6.img conv=notrunc", shell=True)
+        powermake.run_command(config, ["dd", f"if={kernel_bin}", "of=xv6.img", "seek=1", "conv=notrunc"])
 
 
 def compile_user_prg(config: powermake.Config, files: set[str], deps_objects: set[str], program_name: str):
@@ -110,7 +113,7 @@ def build_fs_img(config: powermake.Config):
 
     programs = set()
 
-    config.exe_build_directory = "."
+    config.exe_build_directory = "."  # mkfs need programs without any /
 
     for name in ("cat", "echo", "grep", "init", "kill", "ln", "ls", "mkdir", "rm", "sh", "stressfs", "usertests", "wc", "zombie"):
         programs.add(compile_user_prg(config, {f"{name}.c"}, objects_libc, f"_{name}"))
@@ -119,8 +122,8 @@ def build_fs_img(config: powermake.Config):
     # needs to be small in order to be able to max out the proc table.
     programs.add(compile_user_prg(config, {"forktest.c"}, objects_libc_restricted, "_forktest"))
 
-    op = powermake.operation.Operation("fs.img", {"README", *programs}, config, command=[build_mkfs(config), "fs.img", "README", *programs])
-    op.execute(force=config.rebuild)
+    if powermake.needs_update(outputfile="fs.img", dependencies={"README", *programs}, additional_includedirs=[]):
+        powermake.run_command(config, [build_mkfs(config), "fs.img", "README", *programs])
 
 
 def on_build(config: powermake.Config):
