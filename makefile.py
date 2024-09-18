@@ -84,18 +84,25 @@ def compile_user_prg(config: powermake.Config, files: set[str], deps_objects: se
     return powermake.link_files(config, objects, executable_name=program_name)
 
 
-def build_fs_img(config: powermake.Config, mkfs_prg: str):
+def build_mkfs(config: powermake.Config):
+    config = config.empty_copy()
+
+    config.add_c_flags("-Wall", "-Wextra")
+
+    mkfs_objects = powermake.compile_files(config, {"mkfs.c"})
+    return powermake.link_files(config, mkfs_objects, executable_name="mkfs")
+
+
+def build_fs_img(config: powermake.Config):
     config = config.copy()
     config.add_ld_flags("-N", "-e", "main", "-Ttext", "0")
     config.add_as_flags("-gdwarf-2", "-Wa,-divide")
 
     files_libc_restricted = {
-        "ulib.c",
-        "usys.S",
+        "ulib.c", "usys.S"
     }
     files_libc_extented = {
-        "printf.c",
-        "umalloc.c"
+        "printf.c", "umalloc.c"
     }
 
     objects_libc_restricted = powermake.compile_files(config, files_libc_restricted)
@@ -112,30 +119,18 @@ def build_fs_img(config: powermake.Config, mkfs_prg: str):
     # needs to be small in order to be able to max out the proc table.
     programs.add(compile_user_prg(config, {"forktest.c"}, objects_libc_restricted, "_forktest"))
 
-    op = powermake.operation.Operation("fs.img", {"README", *programs}, config, command=[mkfs_prg, "fs.img", *programs])
+    op = powermake.operation.Operation("fs.img", {"README", *programs}, config, command=[build_mkfs(config), "fs.img", "README", *programs])
     op.execute(force=config.rebuild)
 
 
-def build_mkfs(config: powermake.Config):
-    config = config.copy()
-
-    config.c_compiler = powermake.compilers.CompilerGCC()
-    config.linker = powermake.linkers.LinkerGCC()
-
-    mkfs_objects = powermake.compile_files(config, {"mkfs.c"})
-    return powermake.link_files(config, mkfs_objects, executable_name="mkfs")
-
-
 def on_build(config: powermake.Config):
-    mkfs_prg = build_mkfs(config)
-
     config.add_c_cpp_as_asm_flags("-Wall", "-Wextra")
 
     config.add_c_flags("-fno-pic", "-static", "-fno-builtin", "-fno-strict-aliasing", "-fno-omit-frame-pointer", "-fno-stack-protector", "-fno-pie", "-no-pie")
     config.add_ld_flags("-m", "elf_i386")
 
     build_xv6_img(config)
-    build_fs_img(config, mkfs_prg)
+    build_fs_img(config)
 
     powermake.run_command(config, "qemu-system-i386 -serial mon:stdio -drive file=fs.img,index=1,media=disk,format=raw -drive file=xv6.img,index=0,media=disk,format=raw -smp 2 -m 512", shell=True)
 
