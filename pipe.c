@@ -25,11 +25,11 @@ int pipealloc(struct file** f0, struct file** f1)
 
     p   = 0;
     *f0 = *f1 = 0;
-    if ((*f0 = filealloc()) == 0 || (*f1 = filealloc()) == 0)
+    if((*f0 = filealloc()) == 0 || (*f1 = filealloc()) == 0)
     {
         goto bad;
     }
-    if ((p = (struct pipe*) kalloc()) == 0)
+    if((p = (struct pipe*) kalloc()) == 0)
     {
         goto bad;
     }
@@ -50,15 +50,15 @@ int pipealloc(struct file** f0, struct file** f1)
 
     //PAGEBREAK: 20
 bad:
-    if (p)
+    if(p)
     {
         kfree((char*) p);
     }
-    if (*f0)
+    if(*f0)
     {
         fileclose(*f0);
     }
-    if (*f1)
+    if(*f1)
     {
         fileclose(*f1);
     }
@@ -68,7 +68,7 @@ bad:
 void pipeclose(struct pipe* p, int writable)
 {
     acquire(&p->lock);
-    if (writable)
+    if(writable)
     {
         p->writeopen = 0;
         wakeup(&p->nread);
@@ -78,7 +78,7 @@ void pipeclose(struct pipe* p, int writable)
         p->readopen = 0;
         wakeup(&p->nwrite);
     }
-    if (p->readopen == 0 && p->writeopen == 0)
+    if(p->readopen == 0 && p->writeopen == 0)
     {
         release(&p->lock);
         kfree((char*) p);
@@ -95,11 +95,11 @@ int pipewrite(struct pipe* p, char* addr, int n)
     int i;
 
     acquire(&p->lock);
-    for (i = 0; i < n; i++)
+    for(i = 0; i < n; i++)
     {
-        while (p->nwrite == p->nread + PIPESIZE)
+        while(p->nwrite == p->nread + PIPESIZE)
         {    //DOC: pipewrite-full
-            if (p->readopen == 0 || myproc()->killed)
+            if(p->readopen == 0 || myproc()->killed)
             {
                 release(&p->lock);
                 return -1;
@@ -119,18 +119,18 @@ int piperead(struct pipe* p, char* addr, int n)
     int i;
 
     acquire(&p->lock);
-    while (p->nread == p->nwrite && p->writeopen)
+    while(p->nread == p->nwrite && p->writeopen)
     {    //DOC: pipe-empty
-        if (myproc()->killed)
+        if(myproc()->killed)
         {
             release(&p->lock);
             return -1;
         }
         sleep(&p->nread, &p->lock);    //DOC: piperead-sleep
     }
-    for (i = 0; i < n; i++)
+    for(i = 0; i < n; i++)
     {    //DOC: piperead-copy
-        if (p->nread == p->nwrite)
+        if(p->nread == p->nwrite)
         {
             break;
         }

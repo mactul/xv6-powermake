@@ -35,14 +35,13 @@ static int havedisk1;
 static void idestart(struct buf*);
 
 // Wait for IDE disk to become ready.
-static int
-idewait(int checkerr)
+static int idewait(int checkerr)
 {
     int r;
 
-    while (((r = inb(0x1f7)) & (IDE_BSY | IDE_DRDY)) != IDE_DRDY)
+    while(((r = inb(0x1f7)) & (IDE_BSY | IDE_DRDY)) != IDE_DRDY)
         ;
-    if (checkerr && (r & (IDE_DF | IDE_ERR)) != 0)
+    if(checkerr && (r & (IDE_DF | IDE_ERR)) != 0)
     {
         return -1;
     }
@@ -59,9 +58,9 @@ void ideinit(void)
 
     // Check if disk 1 is present
     outb(0x1f6, 0xe0 | (1 << 4));
-    for (i = 0; i < 1000; i++)
+    for(i = 0; i < 1000; i++)
     {
-        if (inb(0x1f7) != 0)
+        if(inb(0x1f7) != 0)
         {
             havedisk1 = 1;
             break;
@@ -73,14 +72,13 @@ void ideinit(void)
 }
 
 // Start the request for b.  Caller must hold idelock.
-static void
-idestart(struct buf* b)
+static void idestart(struct buf* b)
 {
-    if (b == 0)
+    if(b == 0)
     {
         panic("idestart");
     }
-    if (b->blockno >= FSSIZE)
+    if(b->blockno >= FSSIZE)
     {
         panic("incorrect blockno");
     }
@@ -89,7 +87,7 @@ idestart(struct buf* b)
     int read_cmd         = (sector_per_block == 1) ? IDE_CMD_READ : IDE_CMD_RDMUL;
     int write_cmd        = (sector_per_block == 1) ? IDE_CMD_WRITE : IDE_CMD_WRMUL;
 
-    if (sector_per_block > 7)
+    if(sector_per_block > 7)
     {
         panic("idestart");
     }
@@ -101,7 +99,7 @@ idestart(struct buf* b)
     outb(0x1f4, (sector >> 8) & 0xff);
     outb(0x1f5, (sector >> 16) & 0xff);
     outb(0x1f6, 0xe0 | ((b->dev & 1) << 4) | ((sector >> 24) & 0x0f));
-    if (b->flags & B_DIRTY)
+    if(b->flags & B_DIRTY)
     {
         outb(0x1f7, write_cmd);
         outsl(0x1f0, b->data, BSIZE / 4);
@@ -120,7 +118,7 @@ void ideintr(void)
     // First queued buffer is the active request.
     acquire(&idelock);
 
-    if ((b = idequeue) == 0)
+    if((b = idequeue) == 0)
     {
         release(&idelock);
         return;
@@ -128,7 +126,7 @@ void ideintr(void)
     idequeue = b->qnext;
 
     // Read data if needed.
-    if (!(b->flags & B_DIRTY) && idewait(1) >= 0)
+    if(!(b->flags & B_DIRTY) && idewait(1) >= 0)
     {
         insl(0x1f0, b->data, BSIZE / 4);
     }
@@ -139,7 +137,7 @@ void ideintr(void)
     wakeup(b);
 
     // Start disk on next buf in queue.
-    if (idequeue != 0)
+    if(idequeue != 0)
     {
         idestart(idequeue);
     }
@@ -155,15 +153,15 @@ void iderw(struct buf* b)
 {
     struct buf** pp;
 
-    if (!holdingsleep(&b->lock))
+    if(!holdingsleep(&b->lock))
     {
         panic("iderw: buf not locked");
     }
-    if ((b->flags & (B_VALID | B_DIRTY)) == B_VALID)
+    if((b->flags & (B_VALID | B_DIRTY)) == B_VALID)
     {
         panic("iderw: nothing to do");
     }
-    if (b->dev != 0 && !havedisk1)
+    if(b->dev != 0 && !havedisk1)
     {
         panic("iderw: ide disk 1 not present");
     }
@@ -172,18 +170,18 @@ void iderw(struct buf* b)
 
     // Append b to idequeue.
     b->qnext = 0;
-    for (pp = &idequeue; *pp; pp = &(*pp)->qnext)    //DOC:insert-queue
+    for(pp = &idequeue; *pp; pp = &(*pp)->qnext)    //DOC:insert-queue
         ;
     *pp = b;
 
     // Start disk if necessary.
-    if (idequeue == b)
+    if(idequeue == b)
     {
         idestart(b);
     }
 
     // Wait for request to finish.
-    while ((b->flags & (B_VALID | B_DIRTY)) != B_VALID)
+    while((b->flags & (B_VALID | B_DIRTY)) != B_VALID)
     {
         sleep(b, &idelock);
     }

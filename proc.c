@@ -33,12 +33,11 @@ int cpuid()
 
 // Must be called with interrupts disabled to avoid the caller being
 // rescheduled between reading lapicid and running through the loop.
-struct cpu*
-mycpu(void)
+struct cpu* mycpu(void)
 {
     int apicid, i;
 
-    if (readeflags() & FL_IF)
+    if(readeflags() & FL_IF)
     {
         panic("mycpu called with interrupts enabled\n");
     }
@@ -46,9 +45,9 @@ mycpu(void)
     apicid = lapicid();
     // APIC IDs are not guaranteed to be contiguous. Maybe we should have
     // a reverse map, or reserve a register to store &cpus[i].
-    for (i = 0; i < ncpu; ++i)
+    for(i = 0; i < ncpu; ++i)
     {
-        if (cpus[i].apicid == apicid)
+        if(cpus[i].apicid == apicid)
         {
             return &cpus[i];
         }
@@ -58,8 +57,7 @@ mycpu(void)
 
 // Disable interrupts so that we are not rescheduled
 // while reading proc from the cpu structure
-struct proc*
-myproc(void)
+struct proc* myproc(void)
 {
     struct cpu* c;
     struct proc* p;
@@ -75,17 +73,16 @@ myproc(void)
 // If found, change state to EMBRYO and initialize
 // state required to run in the kernel.
 // Otherwise return 0.
-static struct proc*
-allocproc(void)
+static struct proc* allocproc(void)
 {
     struct proc* p;
     char* sp;
 
     acquire(&ptable.lock);
 
-    for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
     {
-        if (p->state == UNUSED)
+        if(p->state == UNUSED)
         {
             goto found;
         }
@@ -101,7 +98,7 @@ found:
     release(&ptable.lock);
 
     // Allocate kernel stack.
-    if ((p->kstack = kalloc()) == 0)
+    if((p->kstack = kalloc()) == 0)
     {
         p->state = UNUSED;
         return 0;
@@ -135,7 +132,7 @@ void userinit(void)
     p = allocproc();
 
     initproc = p;
-    if ((p->pgdir = setupkvm()) == 0)
+    if((p->pgdir = setupkvm()) == 0)
     {
         panic("userinit: out of memory?");
     }
@@ -172,16 +169,16 @@ int growproc(int n)
     struct proc* curproc = myproc();
 
     sz = curproc->sz;
-    if (n > 0)
+    if(n > 0)
     {
-        if ((sz = allocuvm(curproc->pgdir, sz, sz + n)) == 0)
+        if((sz = allocuvm(curproc->pgdir, sz, sz + n)) == 0)
         {
             return -1;
         }
     }
-    else if (n < 0)
+    else if(n < 0)
     {
-        if ((sz = deallocuvm(curproc->pgdir, sz, sz + n)) == 0)
+        if((sz = deallocuvm(curproc->pgdir, sz, sz + n)) == 0)
         {
             return -1;
         }
@@ -201,13 +198,13 @@ int fork(void)
     struct proc* curproc = myproc();
 
     // Allocate process.
-    if ((np = allocproc()) == 0)
+    if((np = allocproc()) == 0)
     {
         return -1;
     }
 
     // Copy process state from proc.
-    if ((np->pgdir = copyuvm(curproc->pgdir, curproc->sz)) == 0)
+    if((np->pgdir = copyuvm(curproc->pgdir, curproc->sz)) == 0)
     {
         kfree(np->kstack);
         np->kstack = 0;
@@ -221,9 +218,9 @@ int fork(void)
     // Clear %eax so that fork returns 0 in the child.
     np->tf->eax = 0;
 
-    for (i = 0; i < NOFILE; i++)
+    for(i = 0; i < NOFILE; i++)
     {
-        if (curproc->ofile[i])
+        if(curproc->ofile[i])
         {
             np->ofile[i] = filedup(curproc->ofile[i]);
         }
@@ -252,15 +249,15 @@ void exit(void)
     struct proc* p;
     int fd;
 
-    if (curproc == initproc)
+    if(curproc == initproc)
     {
         panic("init exiting");
     }
 
     // Close all open files.
-    for (fd = 0; fd < NOFILE; fd++)
+    for(fd = 0; fd < NOFILE; fd++)
     {
-        if (curproc->ofile[fd])
+        if(curproc->ofile[fd])
         {
             fileclose(curproc->ofile[fd]);
             curproc->ofile[fd] = 0;
@@ -278,12 +275,12 @@ void exit(void)
     wakeup1(curproc->parent);
 
     // Pass abandoned children to init.
-    for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
     {
-        if (p->parent == curproc)
+        if(p->parent == curproc)
         {
             p->parent = initproc;
-            if (p->state == ZOMBIE)
+            if(p->state == ZOMBIE)
             {
                 wakeup1(initproc);
             }
@@ -305,18 +302,18 @@ int wait(void)
     struct proc* curproc = myproc();
 
     acquire(&ptable.lock);
-    for (;;)
+    for(;;)
     {
         // Scan through table looking for exited children.
         havekids = 0;
-        for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+        for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
         {
-            if (p->parent != curproc)
+            if(p->parent != curproc)
             {
                 continue;
             }
             havekids = 1;
-            if (p->state == ZOMBIE)
+            if(p->state == ZOMBIE)
             {
                 // Found one.
                 pid = p->pid;
@@ -334,7 +331,7 @@ int wait(void)
         }
 
         // No point waiting if we don't have any children.
-        if (!havekids || curproc->killed)
+        if(!havekids || curproc->killed)
         {
             release(&ptable.lock);
             return -1;
@@ -359,16 +356,16 @@ void scheduler(void)
     struct cpu* c = mycpu();
     c->proc       = 0;
 
-    for (;;)
+    for(;;)
     {
         // Enable interrupts on this processor.
         sti();
 
         // Loop over process table looking for process to run.
         acquire(&ptable.lock);
-        for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+        for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
         {
-            if (p->state != RUNNABLE)
+            if(p->state != RUNNABLE)
             {
                 continue;
             }
@@ -403,19 +400,19 @@ void sched(void)
     int intena;
     struct proc* p = myproc();
 
-    if (!holding(&ptable.lock))
+    if(!holding(&ptable.lock))
     {
         panic("sched ptable.lock");
     }
-    if (mycpu()->ncli != 1)
+    if(mycpu()->ncli != 1)
     {
         panic("sched locks");
     }
-    if (p->state == RUNNING)
+    if(p->state == RUNNING)
     {
         panic("sched running");
     }
-    if (readeflags() & FL_IF)
+    if(readeflags() & FL_IF)
     {
         panic("sched interruptible");
     }
@@ -441,7 +438,7 @@ void forkret(void)
     // Still holding ptable.lock from scheduler.
     release(&ptable.lock);
 
-    if (first)
+    if(first)
     {
         // Some initialization functions must be run in the context
         // of a regular process (e.g., they call sleep), and thus cannot
@@ -460,12 +457,12 @@ void sleep(void* chan, struct spinlock* lk)
 {
     struct proc* p = myproc();
 
-    if (p == 0)
+    if(p == 0)
     {
         panic("sleep");
     }
 
-    if (lk == 0)
+    if(lk == 0)
     {
         panic("sleep without lk");
     }
@@ -476,7 +473,7 @@ void sleep(void* chan, struct spinlock* lk)
     // guaranteed that we won't miss any wakeup
     // (wakeup runs with ptable.lock locked),
     // so it's okay to release lk.
-    if (lk != &ptable.lock)
+    if(lk != &ptable.lock)
     {                             //DOC: sleeplock0
         acquire(&ptable.lock);    //DOC: sleeplock1
         release(lk);
@@ -491,7 +488,7 @@ void sleep(void* chan, struct spinlock* lk)
     p->chan = 0;
 
     // Reacquire original lock.
-    if (lk != &ptable.lock)
+    if(lk != &ptable.lock)
     {    //DOC: sleeplock2
         release(&ptable.lock);
         acquire(lk);
@@ -501,14 +498,13 @@ void sleep(void* chan, struct spinlock* lk)
 //PAGEBREAK!
 // Wake up all processes sleeping on chan.
 // The ptable lock must be held.
-static void
-wakeup1(void* chan)
+static void wakeup1(void* chan)
 {
     struct proc* p;
 
-    for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
     {
-        if (p->state == SLEEPING && p->chan == chan)
+        if(p->state == SLEEPING && p->chan == chan)
         {
             p->state = RUNNABLE;
         }
@@ -531,13 +527,13 @@ int kill(int pid)
     struct proc* p;
 
     acquire(&ptable.lock);
-    for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
     {
-        if (p->pid == pid)
+        if(p->pid == pid)
         {
             p->killed = 1;
             // Wake process from sleep if necessary.
-            if (p->state == SLEEPING)
+            if(p->state == SLEEPING)
             {
                 p->state = RUNNABLE;
             }
@@ -568,13 +564,13 @@ void procdump(void)
     char* state;
     uint pc[10];
 
-    for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
     {
-        if (p->state == UNUSED)
+        if(p->state == UNUSED)
         {
             continue;
         }
-        if (p->state >= 0 && p->state < NELEM(states) && states[p->state])
+        if(p->state >= 0 && p->state < NELEM(states) && states[p->state])
         {
             state = states[p->state];
         }
@@ -583,10 +579,10 @@ void procdump(void)
             state = "???";
         }
         cprintf("%d %s %s", p->pid, state, p->name);
-        if (p->state == SLEEPING)
+        if(p->state == SLEEPING)
         {
             getcallerpcs((uint*) p->context->ebp + 2, pc);
-            for (i = 0; i < 10 && pc[i] != 0; i++)
+            for(i = 0; i < 10 && pc[i] != 0; i++)
             {
                 cprintf(" %p", pc[i]);
             }

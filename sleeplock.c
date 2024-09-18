@@ -21,7 +21,7 @@ void initsleeplock(struct sleeplock* lk, char* name)
 void acquiresleep(struct sleeplock* lk)
 {
     acquire(&lk->lk);
-    while (lk->locked)
+    while(lk->locked)
     {
         sleep(lk, &lk->lk);
     }

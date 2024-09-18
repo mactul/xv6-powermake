@@ -15,11 +15,11 @@
     #define static_assert(a, b) \
         do                      \
         {                       \
-            switch (0)          \
+            switch(0)           \
             case 0:             \
-            case (a):;          \
+            case(a):;           \
         }                       \
-        while (0)
+        while(0)
 #endif
 
 #define NINODES 200
@@ -79,7 +79,7 @@ int main(int argc, char* argv[])
 
     static_assert(sizeof(int) == 4, "Integers must be 4 bytes!");
 
-    if (argc < 2)
+    if(argc < 2)
     {
         fprintf(stderr, "Usage: mkfs fs.img files...\n");
         exit(1);
@@ -89,7 +89,7 @@ int main(int argc, char* argv[])
     assert((BSIZE % sizeof(struct dirent)) == 0);
 
     fsfd = open(argv[1], O_RDWR | O_CREAT | O_TRUNC, 0666);
-    if (fsfd < 0)
+    if(fsfd < 0)
     {
         perror(argv[1]);
         exit(1);
@@ -111,7 +111,7 @@ int main(int argc, char* argv[])
 
     freeblock = nmeta;    // the first free block that we can allocate
 
-    for (i = 0; i < FSSIZE; i++)
+    for(i = 0; i < FSSIZE; i++)
     {
         wsect(i, zeroes);
     }
@@ -133,11 +133,11 @@ int main(int argc, char* argv[])
     strcpy(de.name, "..");
     iappend(rootino, &de, sizeof(de));
 
-    for (i = 2; i < argc; i++)
+    for(i = 2; i < argc; i++)
     {
         assert(index(argv[i], '/') == 0);
 
-        if ((fd = open(argv[i], 0)) < 0)
+        if((fd = open(argv[i], 0)) < 0)
         {
             perror(argv[i]);
             exit(1);
@@ -147,7 +147,7 @@ int main(int argc, char* argv[])
         // The binaries are named _rm, _cat, etc. to keep the
         // build operating system from trying to execute them
         // in place of system binaries like rm and cat.
-        if (argv[i][0] == '_')
+        if(argv[i][0] == '_')
         {
             ++argv[i];
         }
@@ -159,7 +159,7 @@ int main(int argc, char* argv[])
         strncpy(de.name, argv[i], DIRSIZ);
         iappend(rootino, &de, sizeof(de));
 
-        while ((cc = read(fd, buf, sizeof(buf))) > 0)
+        while((cc = read(fd, buf, sizeof(buf))) > 0)
         {
             iappend(inum, buf, cc);
         }
@@ -181,12 +181,12 @@ int main(int argc, char* argv[])
 
 void wsect(uint sec, void* buf)
 {
-    if (lseek(fsfd, sec * BSIZE, 0) != sec * BSIZE)
+    if(lseek(fsfd, sec * BSIZE, 0) != sec * BSIZE)
     {
         perror("lseek");
         exit(1);
     }
-    if (write(fsfd, buf, BSIZE) != BSIZE)
+    if(write(fsfd, buf, BSIZE) != BSIZE)
     {
         perror("write");
         exit(1);
@@ -220,12 +220,12 @@ void rinode(uint inum, struct dinode* ip)
 
 void rsect(uint sec, void* buf)
 {
-    if (lseek(fsfd, sec * BSIZE, 0) != sec * BSIZE)
+    if(lseek(fsfd, sec * BSIZE, 0) != sec * BSIZE)
     {
         perror("lseek");
         exit(1);
     }
-    if (read(fsfd, buf, BSIZE) != BSIZE)
+    if(read(fsfd, buf, BSIZE) != BSIZE)
     {
         perror("read");
         exit(1);
@@ -253,7 +253,7 @@ void balloc(int used)
     printf("balloc: first %d blocks have been allocated\n", used);
     assert(used < BSIZE * 8);
     bzero(buf, BSIZE);
-    for (i = 0; i < used; i++)
+    for(i = 0; i < used; i++)
     {
         buf[i / 8] = buf[i / 8] | (0x1 << (i % 8));
     }
@@ -275,13 +275,13 @@ void iappend(uint inum, void* xp, int n)
     rinode(inum, &din);
     off = xint(din.size);
     // printf("append inum %d at off %d sz %d\n", inum, off, n);
-    while (n > 0)
+    while(n > 0)
     {
         fbn = off / BSIZE;
         assert(fbn < MAXFILE);
-        if (fbn < NDIRECT)
+        if(fbn < NDIRECT)
         {
-            if (xint(din.addrs[fbn]) == 0)
+            if(xint(din.addrs[fbn]) == 0)
             {
                 din.addrs[fbn] = xint(freeblock++);
             }
@@ -289,12 +289,12 @@ void iappend(uint inum, void* xp, int n)
         }
         else
         {
-            if (xint(din.addrs[NDIRECT]) == 0)
+            if(xint(din.addrs[NDIRECT]) == 0)
             {
                 din.addrs[NDIRECT] = xint(freeblock++);
             }
             rsect(xint(din.addrs[NDIRECT]), (char*) indirect);
-            if (indirect[fbn - NDIRECT] == 0)
+            if(indirect[fbn - NDIRECT] == 0)
             {
                 indirect[fbn - NDIRECT] = xint(freeblock++);
                 wsect(xint(din.addrs[NDIRECT]), (char*) indirect);

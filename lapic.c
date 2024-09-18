@@ -44,8 +44,7 @@
 volatile uint* lapic;    // Initialized in mp.c
 
 //PAGEBREAK!
-static void
-lapicw(int index, int value)
+static void lapicw(int index, int value)
 {
     lapic[index] = value;
     lapic[ID];    // wait for write to finish, by reading
@@ -53,7 +52,7 @@ lapicw(int index, int value)
 
 void lapicinit(void)
 {
-    if (!lapic)
+    if(!lapic)
     {
         return;
     }
@@ -75,7 +74,7 @@ void lapicinit(void)
 
     // Disable performance counter overflow interrupts
     // on machines that provide that interrupt entry.
-    if (((lapic[VER] >> 16) & 0xFF) >= 4)
+    if(((lapic[VER] >> 16) & 0xFF) >= 4)
     {
         lapicw(PCINT, MASKED);
     }
@@ -93,7 +92,7 @@ void lapicinit(void)
     // Send an Init Level De-Assert to synchronise arbitration ID's.
     lapicw(ICRHI, 0);
     lapicw(ICRLO, BCAST | INIT | LEVEL);
-    while (lapic[ICRLO] & DELIVS)
+    while(lapic[ICRLO] & DELIVS)
         ;
 
     // Enable interrupts on the APIC (but not on the processor).
@@ -102,7 +101,7 @@ void lapicinit(void)
 
 int lapicid(void)
 {
-    if (!lapic)
+    if(!lapic)
     {
         return 0;
     }
@@ -112,7 +111,7 @@ int lapicid(void)
 // Acknowledge interrupt.
 void lapiceoi(void)
 {
-    if (lapic)
+    if(lapic)
     {
         lapicw(EOI, 0);
     }
@@ -156,7 +155,7 @@ void lapicstartap(uchar apicid, uint addr)
     // when it is in the halted state due to an INIT.  So the second
     // should be ignored, but it is part of the official Intel algorithm.
     // Bochs complains about the second one.  Too bad for Bochs.
-    for (i = 0; i < 2; i++)
+    for(i = 0; i < 2; i++)
     {
         lapicw(ICRHI, apicid << 24);
         lapicw(ICRLO, STARTUP | (addr >> 12));
@@ -175,8 +174,7 @@ void lapicstartap(uchar apicid, uint addr)
 #define MONTH 0x08
 #define YEAR 0x09
 
-static uint
-cmos_read(uint reg)
+static uint cmos_read(uint reg)
 {
     outb(CMOS_PORT, reg);
     microdelay(200);
@@ -184,8 +182,7 @@ cmos_read(uint reg)
     return inb(CMOS_RETURN);
 }
 
-static void
-fill_rtcdate(struct rtcdate* r)
+static void fill_rtcdate(struct rtcdate* r)
 {
     r->second = cmos_read(SECS);
     r->minute = cmos_read(MINS);
@@ -206,22 +203,22 @@ void cmostime(struct rtcdate* r)
     bcd = (sb & (1 << 2)) == 0;
 
     // make sure CMOS doesn't modify time while we read it
-    for (;;)
+    for(;;)
     {
         fill_rtcdate(&t1);
-        if (cmos_read(CMOS_STATA) & CMOS_UIP)
+        if(cmos_read(CMOS_STATA) & CMOS_UIP)
         {
             continue;
         }
         fill_rtcdate(&t2);
-        if (memcmp(&t1, &t2, sizeof(t1)) == 0)
+        if(memcmp(&t1, &t2, sizeof(t1)) == 0)
         {
             break;
         }
     }
 
     // convert
-    if (bcd)
+    if(bcd)
     {
 #define CONV(x) (t1.x = ((t1.x >> 4) * 10) + (t1.x & 0xf))
         CONV(second);

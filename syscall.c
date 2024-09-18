@@ -18,7 +18,7 @@ int fetchint(uint addr, int* ip)
 {
     struct proc* curproc = myproc();
 
-    if (addr >= curproc->sz || addr + 4 > curproc->sz)
+    if(addr >= curproc->sz || addr + 4 > curproc->sz)
     {
         return -1;
     }
@@ -34,15 +34,15 @@ int fetchstr(uint addr, char** pp)
     char *s, *ep;
     struct proc* curproc = myproc();
 
-    if (addr >= curproc->sz)
+    if(addr >= curproc->sz)
     {
         return -1;
     }
     *pp = (char*) addr;
     ep  = (char*) curproc->sz;
-    for (s = *pp; s < ep; s++)
+    for(s = *pp; s < ep; s++)
     {
-        if (*s == 0)
+        if(*s == 0)
         {
             return s - *pp;
         }
@@ -64,11 +64,11 @@ int argptr(int n, char** pp, int size)
     int i;
     struct proc* curproc = myproc();
 
-    if (argint(n, &i) < 0)
+    if(argint(n, &i) < 0)
     {
         return -1;
     }
-    if (size < 0 || (uint) i >= curproc->sz || (uint) i + size > curproc->sz)
+    if(size < 0 || (uint) i >= curproc->sz || (uint) i + size > curproc->sz)
     {
         return -1;
     }
@@ -83,7 +83,7 @@ int argptr(int n, char** pp, int size)
 int argstr(int n, char** pp)
 {
     int addr;
-    if (argint(n, &addr) < 0)
+    if(argint(n, &addr) < 0)
     {
         return -1;
     }
@@ -142,7 +142,7 @@ void syscall(void)
     struct proc* curproc = myproc();
 
     num = curproc->tf->eax;
-    if (num > 0 && num < NELEM(syscalls) && syscalls[num])
+    if(num > 0 && num < NELEM(syscalls) && syscalls[num])
     {
         curproc->tf->eax = syscalls[num]();
     }

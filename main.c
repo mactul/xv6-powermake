@@ -37,8 +37,7 @@ int main(void)
 }
 
 // Other CPUs jump here from entryother.S.
-static void
-mpenter(void)
+static void mpenter(void)
 {
     switchkvm();
     seginit();
@@ -47,8 +46,7 @@ mpenter(void)
 }
 
 // Common CPU setup code.
-static void
-mpmain(void)
+static void mpmain(void)
 {
     cprintf("cpu%d: starting %d\n", cpuid(), cpuid());
     idtinit();                       // load idt register
@@ -59,8 +57,7 @@ mpmain(void)
 pde_t entrypgdir[];    // For entry.S
 
 // Start the non-boot (AP) processors.
-static void
-startothers(void)
+static void startothers(void)
 {
     extern uchar _binary_entryother_start[], _binary_entryother_size[];
     uchar* code;
@@ -73,9 +70,9 @@ startothers(void)
     code = P2V(0x7000);
     memmove(code, _binary_entryother_start, (uint) _binary_entryother_size);
 
-    for (c = cpus; c < cpus + ncpu; c++)
+    for(c = cpus; c < cpus + ncpu; c++)
     {
-        if (c == mycpu())    // We've started already.
+        if(c == mycpu())    // We've started already.
         {
             continue;
         }
@@ -91,7 +88,7 @@ startothers(void)
         lapicstartap(c->apicid, V2P(code));
 
         // wait for cpu to finish mpmain()
-        while (c->started == 0)
+        while(c->started == 0)
             ;
     }
 }
