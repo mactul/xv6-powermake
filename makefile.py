@@ -1,3 +1,4 @@
+import os
 import powermake
 
 
@@ -84,7 +85,7 @@ def build_xv6_img(config: powermake.Config):
 
 def compile_user_prg(config: powermake.Config, files: set[str], deps_objects: set[str], program_name: str):
     objects = deps_objects.union(powermake.compile_files(config, files))
-    return powermake.link_files(config, objects, executable_name=program_name)
+    return os.path.basename(powermake.link_files(config, objects, executable_name=program_name))
 
 
 def build_mkfs(config: powermake.Config):
@@ -139,12 +140,7 @@ def on_build(config: powermake.Config):
 
 
 def on_clean(config: powermake.Config):
-    powermake.delete_files_from_disk(
-        "_cat", "_echo", "_forktest", "_grep", "_init", "_kill", "_ln", "_ls",
-        "_mkdir", "_rm", "_sh", "_stressfs", "_usertests", "_wc", "_zombie",
-        "bootblock", "entryother", "initcode", "fs.img", "xv6.img",
-        "vectors.S"
-    )
+    powermake.delete_files_from_disk("_*", "bootblock", "entryother", "initcode", "*.img", "vectors.S")
 
     powermake.default_on_clean(config)
 
