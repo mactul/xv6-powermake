@@ -1,5 +1,12 @@
 import os
 import powermake
+from concurrent.futures import ThreadPoolExecutor
+
+
+userspace_programs = {
+    "cat", "echo", "grep", "init", "kill", "ln", "ls", "mkdir",
+    "rm", "sh", "stressfs", "usertests", "wc", "zombie"
+}
 
 
 def compile_bootblock(config: powermake.Config):
@@ -31,8 +38,7 @@ def compile_initcode(config: powermake.Config):
 
     initcode_o = powermake.link_files(config, objects, executable_name="initcode.o.o")
 
-    if powermake.needs_update(outputfile="initcode", dependencies={initcode_o}, additional_includedirs=[]):
-        powermake.run_command(config, ["objcopy", "-S", "-O", "binary", initcode_o, "initcode"])
+    powermake.run_command_if_needed(config=config, outputfile="initcode", dependencies={initcode_o}, command=["objcopy", "-S", "-O", "binary", initcode_o, "initcode"])
 
 
 def compile_entryother(config: powermake.Config):
@@ -45,8 +51,7 @@ def compile_entryother(config: powermake.Config):
 
     entryother_o = powermake.link_files(config, objects, executable_name="entryother.o.o")
 
-    if powermake.needs_update(outputfile="entryother", dependencies={entryother_o}, additional_includedirs=[]):
-        powermake.run_command(config, ["objcopy", "-S", "-O", "binary", "-j", ".text", entryother_o, "entryother"])
+    powermake.run_command_if_needed(config, outputfile="entryother", dependencies={entryother_o}, command=["objcopy", "-S", "-O", "binary", "-j", ".text", entryother_o, "entryother"])
 
 
 def build_xv6_img(config: powermake.Config):
@@ -58,8 +63,7 @@ def build_xv6_img(config: powermake.Config):
 
     config.add_as_flags("-gdwarf-2", "-Wa,-divide")
 
-    if powermake.needs_update(outputfile="vectors.S", dependencies={"vectors.pl"}, additional_includedirs=[]):
-        powermake.run_command(config, "./vectors.pl > vectors.S", shell=True)
+    powermake.run_command_if_needed(config=config, outputfile="vectors.S", dependencies={"vectors.pl"}, command="./vectors.pl > vectors.S", shell=True)
 
     files = {
         "bio.c", "console.c", "entry.S", "exec.c",
@@ -112,19 +116,18 @@ def build_fs_img(config: powermake.Config):
     objects_libc_restricted = powermake.compile_files(config, files_libc_restricted)
     objects_libc = objects_libc_restricted.union(powermake.compile_files(config, files_libc_extented))
 
-    programs = set()
 
     config.exe_build_directory = "."  # mkfs need programs without any /
 
-    for name in ("cat", "echo", "grep", "init", "kill", "ln", "ls", "mkdir", "rm", "sh", "stressfs", "usertests", "wc", "zombie"):
-        programs.add(compile_user_prg(config, {f"{name}.c"}, objects_libc, f"_{name}"))
+    with ThreadPoolExecutor(max_workers=config.nb_jobs) as executor:
+        programs = executor.map(lambda prg_name: compile_user_prg(config, {f"{prg_name}.c"}, objects_libc, f"_{prg_name}"), userspace_programs)
+    programs = set(programs)
 
     # forktest has less library code linked in
     # needs to be small in order to be able to max out the proc table.
     programs.add(compile_user_prg(config, {"forktest.c"}, objects_libc_restricted, "_forktest"))
 
-    if powermake.needs_update(outputfile="fs.img", dependencies={"README", *programs}, additional_includedirs=[]):
-        powermake.run_command(config, [build_mkfs(config), "fs.img", "README", *programs])
+    powermake.run_command_if_needed(config=config, outputfile="fs.img", dependencies={"README", *programs}, command=[build_mkfs(config), "fs.img", "README", *programs])
 
 
 def on_build(config: powermake.Config):
@@ -136,8 +139,6 @@ def on_build(config: powermake.Config):
     build_xv6_img(config)
     build_fs_img(config)
 
-    powermake.run_command(config, "qemu-system-i386 -serial mon:stdio -drive file=fs.img,index=1,media=disk,format=raw -drive file=xv6.img,index=0,media=disk,format=raw -smp 2 -m 512", shell=True)
-
 
 def on_clean(config: powermake.Config):
     powermake.delete_files_from_disk("_*", "bootblock", "entryother", "initcode", "*.img", "vectors.S")
@@ -145,4 +146,16 @@ def on_clean(config: powermake.Config):
     powermake.default_on_clean(config)
 
 
-powermake.run("kernel.bin", build_callback=on_build, clean_callback=on_clean)
+def on_test(config: powermake.Config):
+    if args_parsed.gdb:
+        powermake.run_command(config, "qemu-system-i386 -serial mon:stdio -drive file=fs.img,index=1,media=disk,format=raw -drive file=xv6.img,index=0,media=disk,format=raw -smp 2 -m 512 -S -gdb tcp::26000", shell=True)
+    else:
+        powermake.run_command(config, "qemu-system-i386 -serial mon:stdio -drive file=fs.img,index=1,media=disk,format=raw -drive file=xv6.img,index=0,media=disk,format=raw -smp 2 -m 512", shell=True)
+
+
+parser = powermake.ArgumentParser()
+parser.add_argument("--gdb", help="Run the kernel with gdb", action="store_true")
+
+args_parsed = parser.parse_args()
+
+powermake.run("kernel.bin", build_callback=on_build, clean_callback=on_clean, test_callback=on_test, args_parsed=args_parsed)
