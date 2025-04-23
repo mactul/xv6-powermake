@@ -117,7 +117,7 @@ def build_fs_img(config: powermake.Config):
     objects_libc = objects_libc_restricted.union(powermake.compile_files(config, files_libc_extented))
 
 
-    config.exe_build_directory = "."  # mkfs need programs without any /
+    config.exe_build_directory = ""  # mkfs need programs without any /
 
     with ThreadPoolExecutor(max_workers=config.nb_jobs) as executor:
         programs = executor.map(lambda prg_name: compile_user_prg(config, {f"{prg_name}.c"}, objects_libc, f"_{prg_name}"), userspace_programs)
@@ -141,12 +141,10 @@ def on_build(config: powermake.Config):
 
 
 def on_clean(config: powermake.Config):
-    powermake.delete_files_from_disk("_*", "bootblock", "entryother", "initcode", "*.img", "vectors.S")
-
-    powermake.default_on_clean(config)
+    powermake.delete_files_from_disk("build", "_*", "bootblock", "entryother", "initcode", "*.img", "vectors.S")
 
 
-def on_test(config: powermake.Config):
+def on_test(config: powermake.Config, args):
     if args_parsed.gdb:
         powermake.run_command(config, "qemu-system-i386 -serial mon:stdio -drive file=fs.img,index=1,media=disk,format=raw -drive file=xv6.img,index=0,media=disk,format=raw -smp 2 -m 512 -S -gdb tcp::26000", shell=True)
     else:
