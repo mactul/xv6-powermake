@@ -13,7 +13,7 @@ def compile_bootblock(config: powermake.Config):
     config = config.copy()
 
     config.set_optimization("-Oz")  # if no optimization is used, the boot block will be too big.
-    config.add_ld_flags("-N", "-e", "start", "-Ttext", "0x7C00")
+    config.add_ld_flags("-N", "-estart", "-Ttext=0x7C00")
     config.add_c_flags("-nostdinc")
     config.add_as_flags("-fno-pic", "-static", "-fno-builtin", "-fno-strict-aliasing", "-fno-omit-frame-pointer", "-fno-stack-protector", "-fno-pie", "-no-pie", "-nostdinc")
 
@@ -31,7 +31,7 @@ def compile_bootblock(config: powermake.Config):
 def compile_initcode(config: powermake.Config):
     config = config.copy()
 
-    config.add_ld_flags("-N", "-e", "start", "-Ttext", "0")
+    config.add_ld_flags("-N", "-estart", "-Ttext=0")
     config.add_as_flags("-fno-pic", "-static", "-fno-builtin", "-fno-strict-aliasing", "-fno-omit-frame-pointer", "-fno-stack-protector", "-fno-pie", "-no-pie", "-nostdinc")
 
     objects = powermake.compile_files(config, {"initcode.S"})
@@ -44,7 +44,7 @@ def compile_initcode(config: powermake.Config):
 def compile_entryother(config: powermake.Config):
     config = config.copy()
 
-    config.add_ld_flags("-N", "-e", "start", "-Ttext", "0x7000")
+    config.add_ld_flags("-N", "-estart", "-Ttext=0x7000")
     config.add_as_flags("-fno-pic", "-static", "-fno-builtin", "-fno-strict-aliasing", "-fno-omit-frame-pointer", "-fno-stack-protector", "-fno-pie", "-no-pie", "-nostdinc")
 
     objects = powermake.compile_files(config, {"entryother.S"})
@@ -78,7 +78,7 @@ def build_xv6_img(config: powermake.Config):
 
     objects = powermake.compile_files(config, files)
 
-    config.add_ld_flags("-T", "kernel.ld", "-b", "binary", "initcode", "entryother")
+    config.add_ld_flags("-Tkernel.ld", "-bbinary", "initcode", "entryother")
     kernel_bin = powermake.link_files(config, objects)
 
     if powermake.needs_update(outputfile="xv6.img", dependencies={"bootblock", kernel_bin}, additional_includedirs=[]):
@@ -103,7 +103,7 @@ def build_mkfs(config: powermake.Config):
 
 def build_fs_img(config: powermake.Config):
     config = config.copy()
-    config.add_ld_flags("-N", "-e", "main", "-Ttext", "0")
+    config.add_ld_flags("-N", "-emain", "-Ttext=0")
     config.add_as_flags("-gdwarf-2", "-Wa,-divide")
 
     files_libc_restricted = {
@@ -134,7 +134,7 @@ def on_build(config: powermake.Config):
     config.add_c_cpp_as_asm_flags("-Wall", "-Wextra")
 
     config.add_c_flags("-fno-pic", "-static", "-fno-builtin", "-fno-strict-aliasing", "-fno-omit-frame-pointer", "-fno-stack-protector", "-fno-pie", "-no-pie")
-    config.add_ld_flags("-m", "elf_i386")
+    config.add_ld_flags("-melf_i386")
 
     build_xv6_img(config)
     build_fs_img(config)
